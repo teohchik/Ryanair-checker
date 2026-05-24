@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.keyboards.inline import format_subscriptions_text, subscriptions_kb
 from app.services import subscriptions as sub_svc
+from app.services.price_tracker import get_last_run
 
 router = Router()
 
@@ -16,8 +17,14 @@ async def cmd_my(message: Message, session: AsyncSession) -> None:
     if not subs:
         await message.answer("You have no active trackers yet.")
         return
+    last_run = get_last_run()
+    last_run_text = (
+        f"\n\n🕐 <i>Last price check: {last_run.strftime('%d %b %Y, %H:%M')} UTC</i>"
+        if last_run
+        else "\n\n🕐 <i>Price check: not run yet since bot start</i>"
+    )
     await message.answer(
-        format_subscriptions_text(subs),
+        format_subscriptions_text(subs) + last_run_text,
         reply_markup=subscriptions_kb(subs),
     )
 
