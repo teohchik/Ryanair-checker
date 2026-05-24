@@ -1,30 +1,33 @@
 # Ryanair Price Tracker Bot
 
-Telegram-бот для відстеження цін на рейси Ryanair. Перевіряє ціни кожні 6 годин і надсилає сповіщення, коли з'являється нова найнижча ціна.
+A Telegram bot that monitors Ryanair flight prices for saved routes and sends you a notification whenever a new lowest price appears.
 
-## Функції
+## Features
 
-- Відстеження one-way рейсів між будь-якими аеропортами Ryanair
-- Режими дат: конкретний день або діапазон
-- Автоматична перевірка цін кожні 6 годин
-- Сповіщення при новому мінімумі ціни
-- Адмін отримує сповіщення про нових користувачів і нові трекери
+- Search airports by city name, airport name, or IATA code
+- Track one-way flights with a specific date or a date range
+- Date picker shows only days with available fares (live API check)
+- Automatic price checks every 6 hours
+- Alerts only when a new minimum price is found
+- Admin notifications for new users and new trackers
 
-## Швидкий старт (локально)
+## Quick start
 
 ```bash
-# 1. Встановити залежності
+# 1. Create and activate virtual environment
 python -m venv .venv && source .venv/bin/activate
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 2. Налаштувати середовище
+# 3. Configure environment
 cp .env.example .env
-# Відредагуй .env — вкажи BOT_TOKEN і ADMIN_ID
+# Edit .env — set BOT_TOKEN and ADMIN_ID
 
-# 3. Створити БД
+# 4. Create the database
 alembic upgrade head
 
-# 4. Запустити
+# 5. Run
 python -m app
 ```
 
@@ -32,54 +35,35 @@ python -m app
 
 ```bash
 cp .env.example .env
-# Відредагуй .env
+# Edit .env
 
 docker compose up --build -d
 docker compose logs -f bot
 ```
 
-## Команди бота
+## Bot commands
 
-| Команда | Опис |
-|---------|------|
-| `/start` | Головне меню |
-| `/add` | Додати новий трекер |
-| `/my` | Переглянути та видалити трекери |
-| `/help` | Довідка |
+| Command | Description |
+|---------|-------------|
+| `/start` | Main menu |
+| `/add` | Add a new price tracker |
+| `/my` | View and manage your trackers |
+| `/help` | Usage guide |
 
-## Адмін-команди
+## Admin commands
 
-| Команда | Опис |
-|---------|------|
-| `/stats` | Статистика (юзери, трекери, останній запуск) |
+| Command | Description |
+|---------|-------------|
+| `/stats` | Total users, active trackers, last check time |
 
-## Структура проєкту
+## Environment variables
 
-```
-app/
-├── config.py            # Налаштування (pydantic-settings)
-├── db/                  # SQLAlchemy моделі та сесія
-├── ryanair/             # HTTP-клієнт та схеми Ryanair API
-├── services/            # Бізнес-логіка
-│   ├── subscriptions.py # CRUD підписок
-│   ├── price_tracker.py # Перевірка цін
-│   └── notifier.py      # Відправка повідомлень
-├── middlewares/         # DB-сесія, реєстрація юзерів
-├── handlers/            # Telegram-хендлери
-├── keyboards/           # Клавіатури
-├── filters/             # Фільтри (IsAdmin)
-└── scheduler.py         # APScheduler
-
-```
-
-## Налаштування `.env`
-
-| Змінна | Опис | За замовчуванням |
-|--------|------|-----------------|
-| `BOT_TOKEN` | Токен бота від @BotFather | — |
-| `ADMIN_ID` | Telegram ID адміна | — |
-| `DATABASE_URL` | URL бази даних | `sqlite+aiosqlite:///./data/bot.db` |
-| `CHECK_INTERVAL_HOURS` | Інтервал перевірки в годинах | `6` |
-| `CURRENCY` | Валюта | `EUR` |
-| `LOG_LEVEL` | Рівень логування | `INFO` |
-| `LOG_JSON` | JSON-формат логів (для Docker) | `false` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BOT_TOKEN` | Bot token from @BotFather | — |
+| `ADMIN_ID` | Telegram user ID of the admin | — |
+| `DATABASE_URL` | SQLAlchemy async DB URL | `sqlite+aiosqlite:///./data/bot.db` |
+| `CHECK_INTERVAL_HOURS` | How often to check prices | `6` |
+| `CURRENCY` | Fare currency | `EUR` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+| `LOG_JSON` | JSON log format (recommended for Docker) | `false` |
