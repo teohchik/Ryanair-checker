@@ -14,7 +14,6 @@ from app.keyboards.inline import (
     confirm_kb,
     date_mode_kb,
     days_kb,
-    main_menu_kb,
     months_kb,
 )
 from app.ryanair import airports
@@ -56,6 +55,7 @@ async def _enter_add_flow(target: Message | CallbackQuery, state: FSMContext) ->
 
 
 @router.message(Command("add"))
+@router.message(F.text == "➕ Add tracker")
 async def cmd_add(message: Message, state: FSMContext) -> None:
     await _enter_add_flow(message, state)
 
@@ -413,7 +413,6 @@ async def process_confirm_yes(
         f"    → {dest_ap.display() if dest_ap else dest}\n"
         f"📅 {date_text}"
         f"{price_text}",
-        reply_markup=main_menu_kb(),
     )
     await callback.answer("✅ Saved!")
 
@@ -430,5 +429,5 @@ async def process_confirm_yes(
 @router.callback_query(F.data == "cancel")
 async def process_cancel(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_text("Cancelled.", reply_markup=main_menu_kb())
+    await callback.message.edit_text("Cancelled.")
     await callback.answer()

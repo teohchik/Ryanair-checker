@@ -3,20 +3,18 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.keyboards.inline import format_subscriptions_text, main_menu_kb, subscriptions_kb
+from app.keyboards.inline import format_subscriptions_text, subscriptions_kb
 from app.services import subscriptions as sub_svc
 
 router = Router()
 
 
 @router.message(Command("my"))
+@router.message(F.text == "📋 My trackers")
 async def cmd_my(message: Message, session: AsyncSession) -> None:
     subs = await sub_svc.get_user_subscriptions(session, message.from_user.id)
     if not subs:
-        await message.answer(
-            "You have no active trackers yet.",
-            reply_markup=main_menu_kb(),
-        )
+        await message.answer("You have no active trackers yet.")
         return
     await message.answer(
         format_subscriptions_text(subs),
@@ -28,10 +26,7 @@ async def cmd_my(message: Message, session: AsyncSession) -> None:
 async def cb_list_subs(callback: CallbackQuery, session: AsyncSession) -> None:
     subs = await sub_svc.get_user_subscriptions(session, callback.from_user.id)
     if not subs:
-        await callback.message.edit_text(
-            "You have no active trackers yet.",
-            reply_markup=main_menu_kb(),
-        )
+        await callback.message.edit_text("You have no active trackers yet.")
     else:
         await callback.message.edit_text(
             format_subscriptions_text(subs),
@@ -50,10 +45,7 @@ async def cb_delete_sub(callback: CallbackQuery, session: AsyncSession) -> None:
     await callback.answer("✅ Tracker removed!")
     subs = await sub_svc.get_user_subscriptions(session, callback.from_user.id)
     if not subs:
-        await callback.message.edit_text(
-            "✅ Tracker removed. You have no active trackers.",
-            reply_markup=main_menu_kb(),
-        )
+        await callback.message.edit_text("✅ Tracker removed. You have no active trackers.")
     else:
         await callback.message.edit_text(
             f"✅ Tracker removed.\n\n{format_subscriptions_text(subs)}",

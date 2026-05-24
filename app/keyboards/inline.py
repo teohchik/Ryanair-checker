@@ -7,13 +7,6 @@ from app.db.models import Subscription
 from app.ryanair.airports import Airport
 
 
-def main_menu_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.button(text="➕ Add tracker", callback_data="add_sub")
-    builder.button(text="📋 My trackers", callback_data="list_subs")
-    builder.adjust(1)
-    return builder.as_markup()
-
 
 def date_mode_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
@@ -32,7 +25,7 @@ def confirm_kb() -> InlineKeyboardMarkup:
 
 
 def subscriptions_kb(subs: list[Subscription]) -> InlineKeyboardMarkup:
-    """One delete button per tracker (numbered), plus Add tracker at the bottom."""
+    """One delete button per tracker (numbered)."""
     builder = InlineKeyboardBuilder()
     for i, sub in enumerate(subs, start=1):
         builder.row(
@@ -41,7 +34,6 @@ def subscriptions_kb(subs: list[Subscription]) -> InlineKeyboardMarkup:
                 callback_data=f"del_sub:{sub.id}",
             )
         )
-    builder.row(InlineKeyboardButton(text="➕ Add tracker", callback_data="add_sub"))
     return builder.as_markup()
 
 
