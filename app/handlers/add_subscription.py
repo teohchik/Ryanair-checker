@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import DateMode
 from app.keyboards.inline import (
     airport_results_kb,
+    cancel_kb,
     confirm_kb,
     date_mode_kb,
     days_kb,
@@ -49,6 +50,7 @@ async def _enter_add_flow(target: Message | CallbackQuery, state: FSMContext) ->
         "✈️ <b>Step 1 / 4 — Departure airport</b>\n\n"
         "Type a city, airport name, or IATA code:\n"
         "<i>Examples: London, Berlin, STN, DUB</i>",
+        reply_markup=cancel_kb(),
     )
     if isinstance(target, CallbackQuery):
         await target.answer()
@@ -58,6 +60,16 @@ async def _enter_add_flow(target: Message | CallbackQuery, state: FSMContext) ->
 @router.message(F.text == "➕ Add tracker")
 async def cmd_add(message: Message, state: FSMContext) -> None:
     await _enter_add_flow(message, state)
+
+
+@router.message(Command("cancel"))
+async def cmd_cancel(message: Message, state: FSMContext) -> None:
+    current = await state.get_state()
+    if current is None:
+        await message.answer("Nothing to cancel.")
+        return
+    await state.clear()
+    await message.answer("❌ Cancelled.")
 
 
 @router.callback_query(F.data == "add_sub")
@@ -97,6 +109,7 @@ async def origin_select(callback: CallbackQuery, state: FSMContext) -> None:
         f"✅ Departure: <b>{airport.display()}</b>\n\n"
         "✈️ <b>Step 2 / 4 — Destination airport</b>\n\n"
         "Type a city, airport name, or IATA code:",
+        reply_markup=cancel_kb(),
     )
     await callback.answer()
 

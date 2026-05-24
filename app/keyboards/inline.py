@@ -8,6 +8,12 @@ from app.ryanair.airports import Airport
 
 
 
+def cancel_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="❌ Cancel", callback_data="cancel")
+    return builder.as_markup()
+
+
 def date_mode_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="📅 Specific day", callback_data="mode:specific"))
