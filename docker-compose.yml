@@ -3,5 +3,8 @@ services:
     build: .
     env_file: .env
     volumes:
-      - ./data:/app/data
+      - bot_data:/app/data
     restart: unless-stopped
+
+volumes:
+  bot_data:
