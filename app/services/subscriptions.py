@@ -33,12 +33,14 @@ async def create_subscription(
 
 async def get_user_subscriptions(session: AsyncSession, user_id: int) -> list[Subscription]:
     result = await session.execute(
-        select(Subscription).where(
+        select(Subscription)
+        .where(
             Subscription.user_id == user_id,
             Subscription.is_active.is_(True),
         )
+        .order_by(Subscription.id)
     )
-    return list(result.scalars().all())
+    return list(result.unique().scalars().all())
 
 
 async def deactivate_subscription(
@@ -61,6 +63,8 @@ async def deactivate_subscription(
 
 async def get_all_active(session: AsyncSession) -> list[Subscription]:
     result = await session.execute(
-        select(Subscription).where(Subscription.is_active.is_(True))
+        select(Subscription)
+        .where(Subscription.is_active.is_(True))
+        .order_by(Subscription.id)
     )
-    return list(result.scalars().all())
+    return list(result.unique().scalars().all())
