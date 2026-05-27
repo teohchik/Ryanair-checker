@@ -1,5 +1,5 @@
 import asyncio
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 import httpx
@@ -41,14 +41,10 @@ _HEADERS = {
 }
 
 
-_BOOKING_SESSION_TTL = 1800  # 30 minutes — reuse warmed session within a check cycle
-
-
 class RyanairClient:
     def __init__(self) -> None:
         self._client = httpx.AsyncClient(headers=_HEADERS, timeout=20.0)
         self._booking_client: httpx.AsyncClient | None = None
-        self._booking_warmed_at: datetime | None = None
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -57,18 +53,11 @@ class RyanairClient:
             self._booking_client = None
 
     async def _get_booking_client(self) -> httpx.AsyncClient:
-        """Return a warmed booking client, re-warming only if session is older than TTL."""
-        now = datetime.utcnow()
-        age = (now - self._booking_warmed_at).total_seconds() if self._booking_warmed_at else None
-        needs_warmup = self._booking_client is None or age is None or age > _BOOKING_SESSION_TTL
-
-        if needs_warmup:
-            if self._booking_client is not None:
-                await self._booking_client.aclose()
+        """Return a warmed booking client. Warms up once and reuses until an error invalidates it."""
+        if self._booking_client is None:
             self._booking_client = httpx.AsyncClient(
                 headers=_BOOKING_HEADERS, timeout=20.0, follow_redirects=True
             )
-            # Any valid Ryanair search page sets the session cookies we need
             await self._booking_client.get(
                 f"{_RYANAIR_BASE}/ie/en/trip/flights/select",
                 params={
@@ -78,10 +67,9 @@ class RyanairClient:
                 },
                 headers={"Accept": "text/html,application/xhtml+xml,*/*"},
             )
-            self._booking_warmed_at = now
             log.info("booking_session_warmed")
 
-        return self._booking_client  # type: ignore[return-value]
+        return self._booking_client
 
     @retry(
         retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TimeoutException)),
