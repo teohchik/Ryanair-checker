@@ -6,13 +6,12 @@ import httpx
 import structlog
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from app.ryanair.schemas import AvailabilityResponse, MonthlyFares
+from app.ryanair.schemas import MonthlyFares
 
 log = structlog.get_logger(__name__)
 
 _BASE = "https://services-api.ryanair.com/farfnd/3"
 _LOCATE_BASE = "https://www.ryanair.com/api/views/locate"
-_BOOKING_BASE = "https://www.ryanair.com/api/booking/v4/en-gb"
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -58,32 +57,6 @@ class RyanairClient:
             params={"outboundMonthOfDate": year_month.strftime("%Y-%m-01"), "currency": currency},
         )
         return MonthlyFares.from_api(data)
-
-    async def get_seats_left(
-        self,
-        origin: str,
-        destination: str,
-        day: date,
-    ) -> int | None:
-        try:
-            data = await self._get_json(
-                f"{_BOOKING_BASE}/availability",
-                params={
-                    "ADT": 1, "TEEN": 0, "CHD": 0, "INF": 0,
-                    "Origin": origin,
-                    "Destination": destination,
-                    "DateOut": day.strftime("%Y-%m-%d"),
-                    "DateIn": "",
-                    "FlexDaysOut": 0,
-                    "RoundTrip": "false",
-                    "IncludeConnectingFlights": "false",
-                    "ToUs": "AGREED",
-                },
-            )
-            return AvailabilityResponse.from_api(data).cheapest_seats_left()
-        except Exception as exc:
-            log.warning("seats_left_fetch_failed", origin=origin, dest=destination, day=str(day), error=str(exc))
-            return None
 
     async def get_active_airports(self) -> list[dict[str, Any]]:
         return await self._get_json(f"{_LOCATE_BASE}/5/airports/en/active")

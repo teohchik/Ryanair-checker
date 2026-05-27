@@ -78,13 +78,10 @@ async def check_subscription(
             )
         )
 
-    seats_left = await client.get_seats_left(sub.origin_iata, sub.destination_iata, min_date)
-
     if sub.best_price is None:
         sub.best_price = min_price
         sub.best_price_date = min_date
         sub.best_price_seen_at = datetime.utcnow()
-        sub.best_price_seats_left = seats_left
         if session:
             await session.commit()
         return None
@@ -94,7 +91,6 @@ async def check_subscription(
         sub.best_price = min_price
         sub.best_price_date = min_date
         sub.best_price_seen_at = datetime.utcnow()
-        sub.best_price_seats_left = seats_left
         if session:
             await session.commit()
         log.info(
@@ -115,7 +111,6 @@ async def run_check(client: RyanairClient, bot, notifier) -> None:
     global _last_run
     log.info("price_check_started")
 
-    from app.keyboards.inline import seats_left_badge
     from app.ryanair.airports import get_airport
     from app.services.subscriptions import get_all_active
 
@@ -147,7 +142,6 @@ async def run_check(client: RyanairClient, bot, notifier) -> None:
                         f"💰 <b>{new_price} {sub.currency}</b> "
                         f"<i>(was: {prev_price} {sub.currency})</i>\n"
                         f"📆 Flight date: {sub.best_price_date.strftime('%d %b %Y')}"
-                        f"{seats_left_badge(sub.best_price_seats_left)}"
                     )
                     alerts.append((sub.user_id, msg))
             except Exception as exc:

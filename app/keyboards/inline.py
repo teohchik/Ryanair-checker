@@ -8,14 +8,6 @@ from app.ryanair.airports import Airport
 
 
 
-def seats_left_badge(seats: int | None, *, compact: bool = False) -> str:
-    if seats is None or seats >= 5:
-        return ""
-    if compact:
-        return f"  🔥 {seats} left"
-    return f"\n🔥 Only {seats} seat(s) left at this price!"
-
-
 def cancel_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="❌ Cancel", callback_data="cancel")
@@ -61,11 +53,10 @@ def format_subscriptions_text(subs: list[Subscription]) -> str:
             else f"{sub.date_from.strftime('%d %b %Y')} – {sub.date_to.strftime('%d %b %Y')}"
         )
         price_text = f"{sub.best_price} {sub.currency}" if sub.best_price else "not checked yet"
-        badge = seats_left_badge(sub.best_price_seats_left, compact=True) if sub.best_price else ""
         lines.append(
             f"\n<b>#{i}</b>  ✈️ {sub.origin_iata} → {sub.destination_iata}\n"
             f"     📅 {date_text}\n"
-            f"     💰 min {price_text}{badge}"
+            f"     💰 min {price_text}"
         )
     return "\n".join(lines)
 

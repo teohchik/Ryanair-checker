@@ -16,7 +16,6 @@ from app.keyboards.inline import (
     date_mode_kb,
     days_kb,
     months_kb,
-    seats_left_badge,
 )
 from app.ryanair import airports
 from app.ryanair.client import RyanairClient
@@ -417,7 +416,6 @@ async def process_confirm_yes(
     )
     price_text = (
         f"\n💰 Current minimum: <b>{sub.best_price} {sub.currency}</b> on {sub.best_price_date.strftime('%d %b %Y')}"
-        f"{seats_left_badge(sub.best_price_seats_left)}"
         if sub.best_price
         else "\n⚠️ No fares found yet for this route."
     )
