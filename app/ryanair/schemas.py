@@ -5,6 +5,50 @@ from typing import Any
 from pydantic import BaseModel
 
 
+class AvailabilityFare(BaseModel):
+    amount: Decimal
+    count: int
+
+
+class AvailabilityFlight(BaseModel):
+    flight_number: str
+    fares: list[AvailabilityFare]
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> "AvailabilityFlight":
+        fares: list[AvailabilityFare] = []
+        for key in ("regularFare", "businessFare"):
+            group = data.get(key)
+            if group:
+                for f in group.get("fares", []):
+                    if f.get("type") == "ADT" and f.get("amount") is not None and f.get("count") is not None:
+                        fares.append(AvailabilityFare(amount=f["amount"], count=f["count"]))
+        return cls(flight_number=data.get("flightNumber", ""), fares=fares)
+
+
+class AvailabilityResponse(BaseModel):
+    flights: list[AvailabilityFlight]
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any]) -> "AvailabilityResponse":
+        flights: list[AvailabilityFlight] = []
+        for trip in data.get("trips", []):
+            for day in trip.get("dates", []):
+                for f in day.get("flights", []):
+                    flights.append(AvailabilityFlight.from_api(f))
+        return cls(flights=flights)
+
+    def cheapest_seats_left(self) -> int | None:
+        best_amount: Decimal | None = None
+        best_count: int | None = None
+        for flight in self.flights:
+            for fare in flight.fares:
+                if best_amount is None or fare.amount < best_amount:
+                    best_amount = fare.amount
+                    best_count = fare.count
+        return best_count
+
+
 class FarePrice(BaseModel):
     value: Decimal
     currency_code: str

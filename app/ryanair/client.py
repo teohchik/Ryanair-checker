@@ -6,12 +6,32 @@ import httpx
 import structlog
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from app.ryanair.schemas import MonthlyFares
+from app.ryanair.schemas import AvailabilityResponse, MonthlyFares
 
 log = structlog.get_logger(__name__)
 
 _BASE = "https://services-api.ryanair.com/farfnd/3"
 _LOCATE_BASE = "https://www.ryanair.com/api/views/locate"
+_BOOKING_BASE = "https://www.ryanair.com/api/booking/v4/en-ie"
+_RYANAIR_BASE = "https://www.ryanair.com"
+
+# Headers that make Ryanair's booking API respond (discovered via HAR analysis)
+_BOOKING_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
+    "client": "desktop",
+    "client-version": "3.199.1",
+    "sec-ch-ua": '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"macOS"',
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-origin",
+}
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -57,6 +77,61 @@ class RyanairClient:
             params={"outboundMonthOfDate": year_month.strftime("%Y-%m-01"), "currency": currency},
         )
         return MonthlyFares.from_api(data)
+
+    async def get_seats_left(
+        self,
+        origin: str,
+        destination: str,
+        day: date,
+    ) -> int | None:
+        """Return seats left at cheapest price for given flight date, or None on failure."""
+        date_str = day.strftime("%Y-%m-%d")
+        referer = (
+            f"{_RYANAIR_BASE}/ie/en/trip/flights/select"
+            f"?adults=1&teens=0&children=0&infants=0"
+            f"&dateOut={date_str}&dateIn=&isConnectedFlight=false"
+            f"&discount=0&promoCode=&isReturn=false"
+            f"&originIata={origin}&destinationIata={destination}"
+        )
+        try:
+            # Use a fresh client per call — warmup + availability must share the same session
+            async with httpx.AsyncClient(
+                headers=_BOOKING_HEADERS, timeout=20.0, follow_redirects=True
+            ) as client:
+                # Warmup: visiting the search page unlocks the booking API for this session
+                await client.get(
+                    f"{_RYANAIR_BASE}/ie/en/trip/flights/select",
+                    params={
+                        "adults": 1, "teens": 0, "children": 0, "infants": 0,
+                        "dateOut": date_str, "dateIn": "",
+                        "isConnectedFlight": "false", "discount": 0,
+                        "promoCode": "", "isReturn": "false",
+                        "originIata": origin, "destinationIata": destination,
+                    },
+                    headers={"Accept": "text/html,application/xhtml+xml,*/*"},
+                )
+                resp = await client.get(
+                    f"{_BOOKING_BASE}/availability",
+                    params={
+                        "ADT": 1, "TEEN": 0, "CHD": 0, "INF": 0,
+                        "Origin": origin, "Destination": destination,
+                        "promoCode": "", "IncludeConnectingFlights": "false",
+                        "DateOut": date_str, "DateIn": "",
+                        "FlexDaysBeforeOut": 0, "FlexDaysOut": 0,
+                        "FlexDaysBeforeIn": 0, "FlexDaysIn": 0,
+                        "RoundTrip": "false", "IncludePrimeFares": "false",
+                        "ToUs": "AGREED",
+                    },
+                    headers={"Referer": referer},
+                )
+                resp.raise_for_status()
+                return AvailabilityResponse.from_api(resp.json()).cheapest_seats_left()
+        except Exception as exc:
+            log.warning(
+                "seats_left_fetch_failed",
+                origin=origin, dest=destination, day=date_str, error=str(exc),
+            )
+            return None
 
     async def get_active_airports(self) -> list[dict[str, Any]]:
         return await self._get_json(f"{_LOCATE_BASE}/5/airports/en/active")
