@@ -94,11 +94,11 @@ def format_history_text(
         if idx + 1 < len(daily):
             older_price = daily[idx + 1][1]
             if price < older_price:
-                arrow = "↘️"
+                arrow = "📉"
             elif price > older_price:
-                arrow = "↗️"
+                arrow = "📈"
             else:
-                arrow = "➡️"
+                arrow = ""
         else:
             arrow = ""
         lines.append(f"  {day.strftime('%d %b')} — <b>{price} {sub.currency}</b> {arrow}")
