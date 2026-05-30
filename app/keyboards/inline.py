@@ -1,9 +1,10 @@
 from datetime import date
+from decimal import Decimal
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.db.models import Subscription
+from app.db.models import PriceSnapshot, Subscription
 from app.ryanair.airports import Airport
 
 
@@ -40,16 +41,72 @@ def confirm_kb() -> InlineKeyboardMarkup:
 
 
 def subscriptions_kb(subs: list[Subscription]) -> InlineKeyboardMarkup:
-    """One delete button per tracker (numbered)."""
+    """History + remove buttons per tracker, two per row."""
     builder = InlineKeyboardBuilder()
     for i, sub in enumerate(subs, start=1):
         builder.row(
+            InlineKeyboardButton(text=f"📈 History #{i}", callback_data=f"hist_sub:{sub.id}"),
             InlineKeyboardButton(
                 text=f"🗑 Remove #{i}  ({sub.origin_iata} → {sub.destination_iata})",
                 callback_data=f"del_sub:{sub.id}",
-            )
+            ),
         )
     return builder.as_markup()
+
+
+def history_back_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="◀ Back to list", callback_data="list_subs")
+    return builder.as_markup()
+
+
+def format_history_text(
+    sub: Subscription,
+    snapshots: list[PriceSnapshot],
+    stats: tuple[Decimal | None, Decimal | None, Decimal | None, int],
+) -> str:
+    """Renders the price history view for a single tracker."""
+    date_text = (
+        sub.date_from.strftime("%d %b %Y")
+        if sub.date_from == sub.date_to
+        else f"{sub.date_from.strftime('%d %b %Y')} – {sub.date_to.strftime('%d %b %Y')}"
+    )
+    lines = [
+        f"📈 <b>Price history</b>\n"
+        f"✈️ {sub.origin_iata} → {sub.destination_iata}  |  📅 {date_text}"
+    ]
+
+    low, high, avg, count = stats
+    if count > 0:
+        lines.append(
+            f"\n📉 Lowest <b>{low} {sub.currency}</b>  ·  "
+            f"📈 Highest <b>{high} {sub.currency}</b>  ·  "
+            f"⌀ Avg <b>{avg} {sub.currency}</b>  ·  {count} checks"
+        )
+
+    if not snapshots:
+        lines.append("\n<i>No price history yet — first check runs within the next cycle.</i>")
+        return "\n".join(lines)
+
+    lines.append("\n<b>Recent checks</b> (newest first):")
+    for idx, snap in enumerate(snapshots):
+        if snap.min_price is None:
+            continue
+        # Compare to the next-older snapshot for the trend arrow
+        if idx + 1 < len(snapshots) and snapshots[idx + 1].min_price is not None:
+            older_price = snapshots[idx + 1].min_price
+            if snap.min_price < older_price:
+                arrow = "↘️"
+            elif snap.min_price > older_price:
+                arrow = "↗️"
+            else:
+                arrow = "➡️"
+        else:
+            arrow = ""
+        ts = snap.checked_at.strftime("%d %b, %H:%M")
+        lines.append(f"  {ts} UTC — <b>{snap.min_price} {sub.currency}</b> {arrow}")
+
+    return "\n".join(lines)
 
 
 def format_subscriptions_text(subs: list[Subscription]) -> str:

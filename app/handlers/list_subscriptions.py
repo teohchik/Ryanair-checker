@@ -3,7 +3,12 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.keyboards.inline import format_subscriptions_text, subscriptions_kb
+from app.keyboards.inline import (
+    format_history_text,
+    format_subscriptions_text,
+    history_back_kb,
+    subscriptions_kb,
+)
 from app.services import subscriptions as sub_svc
 from app.services.price_tracker import get_last_run
 
@@ -58,6 +63,22 @@ async def cb_delete_sub(callback: CallbackQuery, session: AsyncSession) -> None:
             f"✅ Tracker removed.\n\n{format_subscriptions_text(subs)}",
             reply_markup=subscriptions_kb(subs),
         )
+
+
+@router.callback_query(F.data.startswith("hist_sub:"))
+async def cb_history(callback: CallbackQuery, session: AsyncSession) -> None:
+    sub_id = int(callback.data.split(":")[1])
+    sub = await sub_svc.get_subscription(session, sub_id, callback.from_user.id)
+    if sub is None:
+        await callback.answer("Tracker not found.", show_alert=True)
+        return
+    snapshots = await sub_svc.get_recent_snapshots(session, sub_id)
+    stats = await sub_svc.get_price_stats(session, sub_id)
+    await callback.message.edit_text(
+        format_history_text(sub, snapshots, stats),
+        reply_markup=history_back_kb(),
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("sub_info:"))
