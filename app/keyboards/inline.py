@@ -88,17 +88,12 @@ def format_history_text(
         lines.append("\n<i>No price history yet — first check runs within the next cycle.</i>")
         return "\n".join(lines)
 
-    lines.append("\n<b>Daily lowest</b> (last 30 days, newest first):")
-    for idx, (day, price) in enumerate(daily):
-        # Arrow compares this day's low to the next-older day's low
-        if idx + 1 < len(daily):
-            older_price = daily[idx + 1][1]
-            if price < older_price:
-                arrow = "📉"
-            elif price > older_price:
-                arrow = "📈"
-            else:
-                arrow = ""
+    lines.append("\n<b>Daily lowest</b> (last 30 days):")
+    rows = list(reversed(daily))  # oldest → newest for display
+    for idx, (day, price) in enumerate(rows):
+        if idx > 0:
+            prev_price = rows[idx - 1][1]
+            arrow = "📉" if price < prev_price else "📈" if price > prev_price else ""
         else:
             arrow = ""
         lines.append(f"  {day.strftime('%d %b')} — <b>{price} {sub.currency}</b> {arrow}")
