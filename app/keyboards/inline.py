@@ -116,7 +116,6 @@ def format_subscriptions_text(subs: list[Subscription]) -> str:
             else f"{sub.date_from.strftime('%d %b %Y')} – {sub.date_to.strftime('%d %b %Y')}"
         )
         price_text = f"{sub.best_price} {sub.currency}" if sub.best_price else "not checked yet"
-        badge = seats_left_badge(sub.best_price_seats_left, compact=True) if sub.best_price else ""
         now_line = (
             f"\n     📊 now {sub.current_price} {sub.currency}"
             if sub.current_price is not None
@@ -125,7 +124,7 @@ def format_subscriptions_text(subs: list[Subscription]) -> str:
         lines.append(
             f"\n<b>#{i}</b>  ✈️ {sub.origin_iata} → {sub.destination_iata}\n"
             f"     📅 {date_text}\n"
-            f"     💰 min {price_text}{badge}"
+            f"     💰 min {price_text}"
             f"{now_line}"
         )
     return "\n".join(lines)
