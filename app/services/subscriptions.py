@@ -76,17 +76,25 @@ async def get_subscription(
     return result.scalar_one_or_none()
 
 
-async def get_recent_snapshots(
-    session: AsyncSession, sub_id: int, limit: int = 10
-) -> list[PriceSnapshot]:
-    """Return the most recent price snapshots for a subscription, newest first."""
+async def get_daily_history(
+    session: AsyncSession, sub_id: int, days: int = 30
+) -> list[tuple[date, Decimal]]:
+    """Lowest price per calendar day for a subscription, newest first, capped at `days` rows."""
     result = await session.execute(
-        select(PriceSnapshot)
+        select(
+            func.date(PriceSnapshot.checked_at).label("day"),
+            func.min(PriceSnapshot.min_price),
+        )
         .where(PriceSnapshot.subscription_id == sub_id)
-        .order_by(PriceSnapshot.checked_at.desc())
-        .limit(limit)
+        .group_by(func.date(PriceSnapshot.checked_at))
+        .order_by(func.date(PriceSnapshot.checked_at).desc())
+        .limit(days)
     )
-    return list(result.scalars().all())
+    return [
+        (date.fromisoformat(day), Decimal(str(low)).quantize(Decimal("0.01")))
+        for day, low in result.all()
+        if low is not None
+    ]
 
 
 async def get_price_stats(

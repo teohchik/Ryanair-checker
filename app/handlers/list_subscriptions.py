@@ -72,10 +72,10 @@ async def cb_history(callback: CallbackQuery, session: AsyncSession) -> None:
     if sub is None:
         await callback.answer("Tracker not found.", show_alert=True)
         return
-    snapshots = await sub_svc.get_recent_snapshots(session, sub_id)
+    daily = await sub_svc.get_daily_history(session, sub_id)
     stats = await sub_svc.get_price_stats(session, sub_id)
     await callback.message.edit_text(
-        format_history_text(sub, snapshots, stats),
+        format_history_text(sub, daily, stats),
         reply_markup=history_back_kb(),
     )
     await callback.answer()

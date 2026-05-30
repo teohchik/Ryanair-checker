@@ -4,7 +4,7 @@ from decimal import Decimal
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.db.models import PriceSnapshot, Subscription
+from app.db.models import Subscription
 from app.ryanair.airports import Airport
 
 
@@ -62,10 +62,10 @@ def history_back_kb() -> InlineKeyboardMarkup:
 
 def format_history_text(
     sub: Subscription,
-    snapshots: list[PriceSnapshot],
+    daily: list[tuple[date, Decimal]],
     stats: tuple[Decimal | None, Decimal | None, Decimal | None, int],
 ) -> str:
-    """Renders the price history view for a single tracker."""
+    """Renders the price history view for a single tracker (daily aggregated)."""
     date_text = (
         sub.date_from.strftime("%d %b %Y")
         if sub.date_from == sub.date_to
@@ -84,27 +84,24 @@ def format_history_text(
             f"⌀ Avg <b>{avg} {sub.currency}</b>  ·  {count} checks"
         )
 
-    if not snapshots:
+    if not daily:
         lines.append("\n<i>No price history yet — first check runs within the next cycle.</i>")
         return "\n".join(lines)
 
-    lines.append("\n<b>Recent checks</b> (newest first):")
-    for idx, snap in enumerate(snapshots):
-        if snap.min_price is None:
-            continue
-        # Compare to the next-older snapshot for the trend arrow
-        if idx + 1 < len(snapshots) and snapshots[idx + 1].min_price is not None:
-            older_price = snapshots[idx + 1].min_price
-            if snap.min_price < older_price:
+    lines.append("\n<b>Daily lowest</b> (last 30 days, newest first):")
+    for idx, (day, price) in enumerate(daily):
+        # Arrow compares this day's low to the next-older day's low
+        if idx + 1 < len(daily):
+            older_price = daily[idx + 1][1]
+            if price < older_price:
                 arrow = "↘️"
-            elif snap.min_price > older_price:
+            elif price > older_price:
                 arrow = "↗️"
             else:
                 arrow = "➡️"
         else:
             arrow = ""
-        ts = snap.checked_at.strftime("%d %b, %H:%M")
-        lines.append(f"  {ts} UTC — <b>{snap.min_price} {sub.currency}</b> {arrow}")
+        lines.append(f"  {day.strftime('%d %b')} — <b>{price} {sub.currency}</b> {arrow}")
 
     return "\n".join(lines)
 
