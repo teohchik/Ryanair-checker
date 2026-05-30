@@ -3,6 +3,8 @@ import sys
 
 import structlog
 
+from app.services.alerting import admin_alert_processor
+
 
 def configure_logging(log_level: str = "INFO", json_format: bool = False) -> None:
     logging.basicConfig(
@@ -14,6 +16,8 @@ def configure_logging(log_level: str = "INFO", json_format: bool = False) -> Non
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.format_exc_info,  # turns exc_info= into "exception" field
+        admin_alert_processor,
     ]
     if json_format:
         shared_processors.append(structlog.processors.JSONRenderer())

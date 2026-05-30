@@ -5,6 +5,8 @@ import structlog
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import ErrorEvent
+from apscheduler.events import EVENT_JOB_ERROR
 
 from app.config import settings
 from app.db.session import engine
@@ -14,6 +16,7 @@ from app.middlewares.user_registration import UserRegistrationMiddleware
 from app.ryanair.airports import load_airports
 from app.ryanair.client import RyanairClient
 from app.scheduler import create_scheduler
+from app.services.alerting import set_alert_sink
 from app.services.notifier import Notifier
 
 from app.handlers import start, add_subscription, list_subscriptions, admin
@@ -33,6 +36,8 @@ async def main() -> None:
     client = RyanairClient()
     notifier = Notifier(bot)
 
+    set_alert_sink(notifier.notify_admin)
+
     dp.update.outer_middleware(DbSessionMiddleware())
     dp.update.outer_middleware(UserRegistrationMiddleware())
 
@@ -41,7 +46,21 @@ async def main() -> None:
     dp.include_router(list_subscriptions.router)
     dp.include_router(admin.router)
 
+    @dp.errors()
+    async def on_unhandled_error(event: ErrorEvent) -> bool:
+        log.error(
+            "unhandled_update_exception",
+            update_id=event.update.update_id,
+            exc_info=event.exception,
+        )
+        return True
+
     scheduler = create_scheduler(client, bot, notifier)
+
+    def _on_job_error(evt) -> None:
+        log.error("scheduled_job_failed", job_id=evt.job_id, exc_info=evt.exception)
+
+    scheduler.add_listener(_on_job_error, EVENT_JOB_ERROR)
 
     @dp.startup()
     async def on_startup() -> None:
