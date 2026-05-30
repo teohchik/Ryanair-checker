@@ -56,6 +56,7 @@ class Subscription(Base):
     best_price_date: Mapped[date | None] = mapped_column(Date)
     best_price_seen_at: Mapped[datetime | None] = mapped_column(DateTime)
     best_price_seats_left: Mapped[int | None] = mapped_column(Integer)
+    current_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

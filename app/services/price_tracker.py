@@ -68,6 +68,8 @@ async def check_subscription(
     min_price: Decimal = cheapest.price.value  # type: ignore[union-attr]
     min_date: date = cheapest.day
 
+    sub.current_price = min_price
+
     if session:
         session.add(
             PriceSnapshot(
